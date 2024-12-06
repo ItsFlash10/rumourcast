@@ -16,6 +16,7 @@ import { getQueue, QueueName } from "@anon/queue/src/utils";
 import { Noir } from "@noir-lang/noir_js";
 import { getValidRoots } from "@anon/utils/src/merkle-tree";
 import { augmentCasts } from "./feed";
+import { contract } from "../services/contract";
 
 export function getPostRoutes(
   createPostBackend: Noir,
@@ -234,6 +235,31 @@ export function getPostRoutes(
           signature: t.String(),
           address: t.String(),
           tokenAddress: t.String(),
+        }),
+      }
+    )
+    .get(
+      "/by_nft_id/:id",
+      async ({ params, error }) => {
+        let castId;
+        try {
+          castId = await contract.getCastId(params.id);
+        } catch (e) {
+          return error(404, "Token id not found");
+        }
+
+        const cast = await neynar.getCast(castId);
+        if (!cast.cast) {
+          return error(404, "Cast not found");
+        }
+
+        const revealedCast = await augmentCasts([cast.cast]);
+        console.log("revealed cast", revealedCast);
+        return revealedCast[0];
+      },
+      {
+        params: t.Object({
+          id: t.String(),
         }),
       }
     )

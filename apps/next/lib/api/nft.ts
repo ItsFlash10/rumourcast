@@ -1,37 +1,30 @@
 import { ERC1155Metadata } from './types'
-import type { Cast } from "../types"
+import { api } from '.';
 
-const getCastForTokenId = async (id: string): Promise<Cast> => {
-  // TODO: Implement this
-  return {
-    text: "Hello, world!",
-    author: {
-      username: "testuser"
-    },
-    timestamp: new Date().toISOString()
-  } as Cast
-};
-
-export const generateNFTMetadata = async (id: string): Promise<ERC1155Metadata> => {
+export const generateNFTMetadata = async (id: string, domain: string = "https://rumourcast.xyz"): Promise<ERC1155Metadata> => {
   // Ensure id is padded to 64 hex characters without 0x prefix
-  const cast = await getCastForTokenId(id);
+  const cast = await api.getPostByNftId(id);
+  if (!cast) {
+    throw new Error("Cast not found");
+  }
+  const trimmedCast = cast.text.substring(0, 100) + (cast.text.length > 100 ? '...' : '');
   
   return {
-    name: `I heard a rumour...`,
+    name: trimmedCast,
     decimals: 0,
     description: "This NFT represents a unique cast in the system",
-    image: `https://rumourcast.xyz/nft/${id}.svg`,
+    image: `${domain}/nft/${id}.svg`,
     properties: {
       id: {
         name: "Token ID",
         value: id,
-        display_value: `#${parseInt(id, 16)}`,
+        display_value: id,
         class: "emphasis"
       },
       cast: {
         name: "Cast Data",
         value: cast,
-        display_value: cast.text.substring(0, 100) + (cast.text.length > 100 ? '...' : ''),
+        display_value: trimmedCast,
         class: "cast-data"
       },
       author: {

@@ -22,8 +22,11 @@ export async function GET(
     if (!id) {
       notFound()
     }
+    const host = request.headers.get('host');
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const domain = host ? `${protocol}://${host}` : undefined;
 
-    const metadata = await generateNFTMetadata(id)
+    const metadata = await generateNFTMetadata(id, domain)
     
     return new Response(
       JSON.stringify(metadata),

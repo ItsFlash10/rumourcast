@@ -134,6 +134,10 @@ export const api = {
     const response = await apiClient.request<Cast>(`/posts/${hash}`);
     return response.data;
   },
+  getPostByNftId: async (id: string) => {
+    const response = await apiClient.request<Cast>(`/posts/by_nft_id/${id}`);
+    return response.data;
+  },
   getIdentity: async (address: string) => {
     const response = await apiClient.request<Identity>(
       `/identity?address=${address}`
