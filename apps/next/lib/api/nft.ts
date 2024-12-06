@@ -13,7 +13,7 @@ export const generateNFTMetadata = async (id: string, domain: string = "https://
     name: trimmedCast,
     decimals: 0,
     description: "This NFT represents a unique cast in the system",
-    image: `${domain}/nft/${id}.svg`,
+    image: `${domain}/nft/${cast.hash}.svg`,
     properties: {
       id: {
         name: "Token ID",

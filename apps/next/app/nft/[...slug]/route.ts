@@ -6,10 +6,10 @@ import { api } from '@/lib/api'
 
 // Validate the format: only digits followed by .json
 const isValidJSONRequest = (slug: string) => /^\d+\.json$/.test(slug)
-const isValidSvgRequest = (slug: string) => /^\d+\.svg$/.test(slug);
+const isValidSvgRequest = (slug: string) => /^0x[0-9a-fA-F]{40}\.svg$/.test(slug);
 
-const generateCastCardFromId = async (id: string) => {
-  const cast = await api.getPostByNftId(id);
+const generateCastCardFromHash = async (hash: string) => {
+  const cast = await api.getPost(hash);
   if (!cast) {
     throw new Error("Cast not found");
   }
@@ -34,9 +34,9 @@ export async function GET(
   try {
     // Get the ID from the slug array
     const idWithExtension = params.slug[0] // We know it's valid at this point
-    const id = idWithExtension.replace(/\.json$/, '').replace(/\.svg$/, '');
+    const idOrHash = idWithExtension.replace(/\.json$/, '').replace(/\.svg$/, '');
     
-    if (!id) {
+    if (!idOrHash) {
       notFound()
     }
     if (isJsonRequest) {
@@ -44,7 +44,7 @@ export async function GET(
         const protocol = request.headers.get('x-forwarded-proto') || 'https';
         const domain = host ? `${protocol}://${host}` : undefined;
     
-        const metadata = await generateNFTMetadata(id, domain)
+        const metadata = await generateNFTMetadata(idOrHash, domain)
 
         return new Response(
           JSON.stringify(metadata),
@@ -57,7 +57,7 @@ export async function GET(
           }
         )
     } else if (isSvgRequest) {
-        const svg = await generateCastCardFromId(id)
+        const svg = await generateCastCardFromHash(idOrHash)
         return new Response(svg, {
             status: 200,
             headers: { 'Content-Type': 'image/svg+xml' }
