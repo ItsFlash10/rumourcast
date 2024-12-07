@@ -21,33 +21,74 @@ const escapeText = (text: string) => {
   });
 };
 
+const cleanText = (text: string) => {
+  if (!text) return "";
+  return text
+    .split("")
+    .map((char) => {
+      if (!/^[\x20-\x7E]$/.test(char)) {
+        return char.normalize("NFKC");
+      }
+      return char;
+    })
+    .join("");
+};
+
 const generateCastCard = (
   cast: Cast,
   config: CardConfig = {
-    width: 600,
-    height: 400,
+    width: 500,
+    height: 500,
     padding: 40,
     borderRadius: 24,
-    maxImageHeight: 200,
+    maxImageHeight: 250,
   }
 ) => {
   // Calculate dynamic height based on content
   let contentHeight = config.padding * 2;
-  const hasImage = cast.embeds?.some((embed) => embed.metadata?.image);
-  const hasQuotedCast = cast.embeds?.some((embed) => embed.cast);
+  let currentYOffset = config.padding + 60;
 
-  // Add height for text
-  contentHeight += 80; // Basic text height
-  if (hasImage) contentHeight += config.maxImageHeight;
-  if (hasQuotedCast) contentHeight += 150; // Space for quoted cast
+  // Add height for title and main text
+  contentHeight += 150;
+  currentYOffset += 80; // Space after main text
+
+  // Generate main SVG content
+  let embeddedContent = ``;
+
+  // Add embedded content
+  if (cast.embeds?.length > 0) {
+    for (const embed of cast.embeds) {
+      if (embed.metadata?.image) {
+        embeddedContent += generateImageElement(embed, config, currentYOffset);
+        currentYOffset += config.maxImageHeight + 20; // Image height + spacing
+        contentHeight += config.maxImageHeight + 60; // Account for spacing
+      } else if (embed.cast) {
+        console.log({ embed: JSON.stringify(embed) });
+
+        embeddedContent += generateQuotedCastElement(
+          embed.cast,
+          config,
+          currentYOffset
+        );
+        currentYOffset += 120; // Height of quote box + spacing
+        contentHeight += 120;
+      }
+    }
+  }
 
   const actualHeight = Math.max(config.height, contentHeight);
+
+  // Clean and sanitize text
+  const sanitizedText = cleanText(cast.text || "").replace(
+    /^I heard a rumour.*?\.{2,}(\s|$)/,
+    ""
+  );
 
   const svg = `
     <svg width="${config.width}" height="${actualHeight}" viewBox="0 0 ${
     config.width
   } ${actualHeight}" 
-         xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+         xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xhtml">
       <defs>
         <!-- Background gradient -->
         <linearGradient id="paint0_linear_0_3" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -77,18 +118,31 @@ const generateCastCard = (
             width="${config.width - 34}" height="${actualHeight - 34}" 
             rx="11" stroke="url(#paint1_linear_0_3)" stroke-width="2" fill="none"/>
 
-      <!-- Header text -->
+      <!-- Title text -->
       <text x="${config.padding}" y="${config.padding + 30}" 
             fill="#C146F6" font-size="28" font-family="Arial, sans-serif">
         I heard a rumour...
       </text>
 
-      <!-- Main content -->
-      <g transform="translate(${config.padding}, ${config.padding + 80})">
-        <text fill="white" font-size="36" font-family="Arial, sans-serif" font-weight="bold">
-          ${escapeText(cast.text || "")}
-        </text>
-      </g>
+      <!-- Main text content -->
+      <foreignObject x="${config.padding}" y="${config.padding + 60}" 
+                    width="${config.width - config.padding * 2}" 
+                    height="80">
+        <div xmlns="http://www.w3.org/1999/xhtml" 
+             style="width: 100%; height: 100%; overflow: hidden;">
+          <div style="color: white; 
+                      font-family: Arial, sans-serif;
+                      font-size: 24px;
+                      line-height: 1.4;
+                      overflow-wrap: break-word;
+                      word-break: break-word;
+                      padding-right: 20px;">
+            ${escapeText(sanitizedText)}
+          </div>
+        </div>
+      </foreignObject>
+
+      ${embeddedContent}
 
       <!-- Footer -->
       <g transform="translate(${config.padding}, ${
@@ -192,51 +246,107 @@ const generateCastCard = (
   return svg;
 };
 
-const generateImageElement = (embed: Cast["embeds"][0], config: CardConfig) => {
+const generateImageElement = (
+  embed: Cast["embeds"][0],
+  config: CardConfig,
+  yOffset: number
+) => {
   if (!embed?.metadata?.image) return "";
+
+  // Use original image dimensions but constrain to config width
+  const imageWidth = Math.min(
+    embed.metadata.image.width_px || config.width - config.padding * 2,
+    config.width - config.padding * 2
+  );
 
   const imageHeight = Math.min(
     embed.metadata.image.height_px || config.maxImageHeight,
     config.maxImageHeight
   );
-  const imageWidth = embed.metadata.image.width_px
-    ? (embed.metadata.image.width_px / embed.metadata.image.height_px) *
-      imageHeight
-    : imageHeight;
 
   return `
-      <g transform="translate(${config.padding}, ${config.padding + 100})">
-        <clipPath id="imageClip">
-          <rect width="${imageWidth}" height="${imageHeight}" rx="12" ry="12"/>
+    <g transform="translate(${config.padding}, ${yOffset})">
+      <defs>
+        <clipPath id="imageClip${yOffset}">
+          <rect width="${imageWidth}" height="${imageHeight}" rx="16"/>
         </clipPath>
-        <image 
-          href="${embed.url}"
-          width="${imageWidth}"
-          height="${imageHeight}"
-          clip-path="url(#imageClip)"
-        />
-      </g>
-    `;
+      </defs>
+      
+      <image 
+        href="${embed.url}"
+        width="${imageWidth}"
+        height="${imageHeight}"
+        clip-path="url(#imageClip${yOffset})"
+      />
+    </g>
+  `;
 };
 
 const generateQuotedCastElement = (
   quotedCast: NonNullable<Cast["embeds"][0]["cast"]>,
-  config: CardConfig
+  config: CardConfig,
+  yOffset: number
 ) => {
   if (!quotedCast?.author?.username) return "";
 
+  const quotedText = cleanText(quotedCast.text || "");
+  const quoteBoxHeight = 120;
+
   return `
-      <g transform="translate(${config.padding}, ${config.padding + 100})">
-        <rect width="${config.width - config.padding * 2}" height="120" 
-              rx="12" ry="12" fill="rgba(255,255,255,0.1)"/>
-        <text x="20" y="30" fill="white" font-size="16" font-family="Arial, sans-serif">
+    <g transform="translate(${config.padding}, ${yOffset})">
+      <!-- Quote container -->
+      <rect 
+        width="${config.width - config.padding * 2}" 
+        height="${quoteBoxHeight}" 
+        rx="16"
+        fill="transparent"
+        stroke="rgb(64, 64, 64)"
+        stroke-width="1"
+      />
+      
+      <!-- Profile section -->
+      <g transform="translate(16, 20)">
+        <defs>
+          <clipPath id="profileClip${yOffset}">
+            <circle cx="12" cy="12" r="12"/>
+          </clipPath>
+        </defs>
+        <image 
+          href="${quotedCast.author.pfp_url}"
+          x="0"
+          y="0"
+          width="24"
+          height="24"
+          clip-path="url(#profileClip${yOffset})"
+        />
+        
+        <!-- Username and timestamp -->
+        <text x="36" y="17" fill="white" font-size="15" font-family="Arial, sans-serif">
           @${escapeText(quotedCast.author.username)}
         </text>
-        <text x="20" y="60" fill="#ccc" font-size="14" font-family="Arial, sans-serif">
-          ${escapeText(quotedCast.text || "")}
+        <text x="120" y="17" fill="#666666" font-size="14" font-family="Arial, sans-serif">
+          · ${timeAgo(quotedCast.timestamp)}
         </text>
       </g>
-    `;
+
+      <!-- Quoted text using SVG text -->
+      <text x="16" y="65" fill="#D4D4D4" font-size="15" font-family="Arial, sans-serif">
+        <tspan x="16" dy="0">${escapeText(quotedText)}</tspan>
+      </text>
+    </g>
+  `;
+};
+
+// Helper function for timestamp
+const timeAgo = (timestamp: string): string => {
+  const now = new Date();
+  const past = new Date(timestamp);
+  const seconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+
+  if (seconds < 60) return "now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 86400)}d`;
 };
 
 export default generateCastCard;
