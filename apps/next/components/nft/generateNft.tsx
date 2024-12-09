@@ -48,9 +48,23 @@ const generateCastCard = (
   let contentHeight = config.padding * 2;
   let currentYOffset = config.padding + 60;
 
+  console.log({cast});
+  
+
+  // Clean and sanitize text
+  const sanitizedText = cleanText(cast.text || "").replace(
+    /^I heard a rumour.*?\.{2,}(\s|$)/,
+    ""
+  );
+
+  // Calculate approximate text height (assuming 24px font size and 1.4 line height)
+  const charsPerLine = Math.floor((config.width - config.padding * 2) / 14); // Approximate chars per line
+  const numberOfLines = Math.ceil(sanitizedText.length / charsPerLine);
+  const textHeight = Math.max(80, numberOfLines * 34); // 34px per line (24px * 1.4 line height)
+
   // Add height for title and main text
-  contentHeight += 150;
-  currentYOffset += 80; // Space after main text
+  contentHeight += textHeight + 70; // 70px for title and spacing
+  currentYOffset += textHeight;
 
   // Generate main SVG content
   let embeddedContent = ``;
@@ -60,28 +74,33 @@ const generateCastCard = (
     for (const embed of cast.embeds) {
       if (embed.metadata?.image) {
         embeddedContent += generateImageElement(embed, config, currentYOffset);
-        currentYOffset += config.maxImageHeight + 20; // Image height + spacing
-        contentHeight += config.maxImageHeight + 60; // Account for spacing
+        currentYOffset += config.maxImageHeight + 20;
+        contentHeight += config.maxImageHeight + 60;
       } else if (embed.cast) {
-
-        embeddedContent += generateQuotedCastElement(
+        const quotedContent = generateQuotedCastElement(
           embed.cast,
           config,
           currentYOffset
         );
-        currentYOffset += 120; // Height of quote box + spacing
-        contentHeight += 120;
+        embeddedContent += quotedContent;
+        
+        // Calculate quoted text height
+        const quotedText = cleanText(embed.cast.text || "");
+        const quoteCharsPerLine = Math.floor((config.width - config.padding * 2 - 32) / 12);
+        const quoteNumberOfLines = Math.ceil(quotedText.length / quoteCharsPerLine);
+        const quoteTextHeight = Math.max(20, quoteNumberOfLines * 20);
+        const quoteBoxHeight = 50 + quoteTextHeight + 20;
+        
+        currentYOffset += quoteBoxHeight + 20; // Add spacing after quote
+        contentHeight += quoteBoxHeight + 20;
       }
     }
   }
 
-  const actualHeight = Math.max(config.height, contentHeight);
+  // Add footer height
+  contentHeight += 60; // Height for footer
 
-  // Clean and sanitize text
-  const sanitizedText = cleanText(cast.text || "").replace(
-    /^I heard a rumour.*?\.{2,}(\s|$)/,
-    ""
-  );
+  const actualHeight = Math.max(config.height, contentHeight);
 
   const svg = `
     <svg width="${config.width}" height="${actualHeight}" viewBox="0 0 ${
@@ -126,16 +145,15 @@ const generateCastCard = (
       <!-- Main text content -->
       <foreignObject x="${config.padding}" y="${config.padding + 60}" 
                     width="${config.width - config.padding * 2}" 
-                    height="80">
+                    height="${textHeight}">
         <div xmlns="http://www.w3.org/1999/xhtml" 
-             style="width: 100%; height: 100%; overflow: hidden;">
+             style="width: 100%; height: 100%;">
           <div style="color: white; 
                       font-family: Arial, sans-serif;
                       font-size: 24px;
                       line-height: 1.4;
                       overflow-wrap: break-word;
-                      word-break: break-word;
-                      padding-right: 20px;">
+                      word-break: break-word;">
             ${escapeText(sanitizedText)}
           </div>
         </div>
@@ -289,7 +307,14 @@ const generateQuotedCastElement = (
   if (!quotedCast?.author?.username) return "";
 
   const quotedText = cleanText(quotedCast.text || "");
-  const quoteBoxHeight = 120;
+  
+  // Calculate text height for quoted text
+  const quoteCharsPerLine = Math.floor((config.width - config.padding * 2 - 32) / 12); // 32px for padding, smaller font
+  const quoteNumberOfLines = Math.ceil(quotedText.length / quoteCharsPerLine);
+  const quoteTextHeight = Math.max(20, quoteNumberOfLines * 20); // 20px per line (15px * 1.3 line height)
+  
+  // Base height (padding + profile section) + text height + bottom padding
+  const quoteBoxHeight = 50 + quoteTextHeight + 20;
 
   return `
     <g transform="translate(${config.padding}, ${yOffset})">
@@ -328,10 +353,22 @@ const generateQuotedCastElement = (
         </text>
       </g>
 
-      <!-- Quoted text using SVG text -->
-      <text x="16" y="65" fill="#D4D4D4" font-size="15" font-family="Arial, sans-serif">
-        <tspan x="16" dy="0">${escapeText(quotedText)}</tspan>
-      </text>
+      <!-- Quoted text using foreignObject for better text wrapping -->
+      <foreignObject x="16" y="50" 
+                     width="${config.width - config.padding * 2 - 32}"
+                     height="${quoteTextHeight}">
+        <div xmlns="http://www.w3.org/1999/xhtml"
+             style="width: 100%; height: 100%;">
+          <div style="color: #D4D4D4; 
+                      font-family: Arial, sans-serif;
+                      font-size: 15px;
+                      line-height: 1.3;
+                      overflow-wrap: break-word;
+                      word-break: break-word;">
+            ${escapeText(quotedText)}
+          </div>
+        </div>
+      </foreignObject>
     </g>
   `;
 };
