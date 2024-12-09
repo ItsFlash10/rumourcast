@@ -254,7 +254,6 @@ export function getPostRoutes(
         }
 
         const revealedCast = await augmentCasts([cast.cast]);
-        console.log("revealed cast", revealedCast);
         return revealedCast[0];
       },
       {

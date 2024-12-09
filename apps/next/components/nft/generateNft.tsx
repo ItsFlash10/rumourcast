@@ -48,9 +48,22 @@ const generateCastCard = (
   let contentHeight = config.padding * 2;
   let currentYOffset = config.padding + 60;
 
+  console.log({ caaaa: JSON.stringify(cast) });
+
+  // Clean and sanitize text
+  const sanitizedText = cleanText(cast.text || "").replace(
+    /^I heard a rumour.*?\.{2,}(\s|$)/,
+    ""
+  );
+
+  // Calculate approximate text height (assuming 24px font size and 1.4 line height)
+  const charsPerLine = Math.floor((config.width - config.padding * 2) / 14); // Approximate chars per line
+  const numberOfLines = Math.ceil(sanitizedText.length / charsPerLine);
+  const textHeight = Math.max(80, numberOfLines * 34); // 34px per line (24px * 1.4 line height)
+
   // Add height for title and main text
-  contentHeight += 150;
-  currentYOffset += 80; // Space after main text
+  contentHeight += textHeight + 70; // 70px for title and spacing
+  currentYOffset += textHeight;
 
   // Generate main SVG content
   let embeddedContent = ``;
@@ -60,29 +73,56 @@ const generateCastCard = (
     for (const embed of cast.embeds) {
       if (embed.metadata?.image) {
         embeddedContent += generateImageElement(embed, config, currentYOffset);
-        currentYOffset += config.maxImageHeight + 20; // Image height + spacing
-        contentHeight += config.maxImageHeight + 60; // Account for spacing
-      } else if (embed.cast) {
-        console.log({ embed: JSON.stringify(embed) });
+        currentYOffset += config.maxImageHeight + 20;
+        contentHeight += config.maxImageHeight + 60;
+      } else if (embed.metadata?.html?.ogImage?.[0]?.url) {
+        // Use the new Warpcast element generator
+        embeddedContent += generateWarpcastElement(
+          embed,
+          config,
+          currentYOffset
+        );
+        // Calculate height based on image aspect ratio
+        const imageWidth = config.width - config.padding * 2;
+        const originalWidth = parseInt(embed.metadata.html.ogImage[0].width);
+        const originalHeight = parseInt(embed.metadata.html.ogImage[0].height);
+        const imageHeight = Math.min(
+          (imageWidth * originalHeight) / originalWidth,
+          config.maxImageHeight
+        );
+        const elementHeight = imageHeight + 80; // Same as in generateWarpcastElement
 
-        embeddedContent += generateQuotedCastElement(
+        currentYOffset += elementHeight + 20;
+        contentHeight += elementHeight + 60;
+      } else if (embed.cast) {
+        const quotedContent = generateQuotedCastElement(
           embed.cast,
           config,
           currentYOffset
         );
-        currentYOffset += 120; // Height of quote box + spacing
-        contentHeight += 120;
+        embeddedContent += quotedContent;
+
+        // Calculate quoted text height
+        const quotedText = cleanText(embed.cast.text || "");
+        const quoteCharsPerLine = Math.floor(
+          (config.width - config.padding * 2 - 32) / 12
+        );
+        const quoteNumberOfLines = Math.ceil(
+          quotedText.length / quoteCharsPerLine
+        );
+        const quoteTextHeight = Math.max(20, quoteNumberOfLines * 20);
+        const quoteBoxHeight = 50 + quoteTextHeight + 20;
+
+        currentYOffset += quoteBoxHeight + 20; // Add spacing after quote
+        contentHeight += quoteBoxHeight + 20;
       }
     }
   }
 
-  const actualHeight = Math.max(config.height, contentHeight);
+  // Add footer height
+  contentHeight += 60; // Height for footer
 
-  // Clean and sanitize text
-  const sanitizedText = cleanText(cast.text || "").replace(
-    /^I heard a rumour.*?\.{2,}(\s|$)/,
-    ""
-  );
+  const actualHeight = Math.max(config.height, contentHeight);
 
   const svg = `
     <svg width="${config.width}" height="${actualHeight}" viewBox="0 0 ${
@@ -127,16 +167,15 @@ const generateCastCard = (
       <!-- Main text content -->
       <foreignObject x="${config.padding}" y="${config.padding + 60}" 
                     width="${config.width - config.padding * 2}" 
-                    height="80">
+                    height="${textHeight}">
         <div xmlns="http://www.w3.org/1999/xhtml" 
-             style="width: 100%; height: 100%; overflow: hidden;">
+             style="width: 100%; height: 100%;">
           <div style="color: white; 
                       font-family: Arial, sans-serif;
                       font-size: 24px;
                       line-height: 1.4;
                       overflow-wrap: break-word;
-                      word-break: break-word;
-                      padding-right: 20px;">
+                      word-break: break-word;">
             ${escapeText(sanitizedText)}
           </div>
         </div>
@@ -290,7 +329,16 @@ const generateQuotedCastElement = (
   if (!quotedCast?.author?.username) return "";
 
   const quotedText = cleanText(quotedCast.text || "");
-  const quoteBoxHeight = 120;
+
+  // Calculate text height for quoted text
+  const quoteCharsPerLine = Math.floor(
+    (config.width - config.padding * 2 - 32) / 12
+  ); // 32px for padding, smaller font
+  const quoteNumberOfLines = Math.ceil(quotedText.length / quoteCharsPerLine);
+  const quoteTextHeight = Math.max(20, quoteNumberOfLines * 20); // 20px per line (15px * 1.3 line height)
+
+  // Base height (padding + profile section) + text height + bottom padding
+  const quoteBoxHeight = 50 + quoteTextHeight + 20;
 
   return `
     <g transform="translate(${config.padding}, ${yOffset})">
@@ -329,10 +377,22 @@ const generateQuotedCastElement = (
         </text>
       </g>
 
-      <!-- Quoted text using SVG text -->
-      <text x="16" y="65" fill="#D4D4D4" font-size="15" font-family="Arial, sans-serif">
-        <tspan x="16" dy="0">${escapeText(quotedText)}</tspan>
-      </text>
+      <!-- Quoted text using foreignObject for better text wrapping -->
+      <foreignObject x="16" y="50" 
+                     width="${config.width - config.padding * 2 - 32}"
+                     height="${quoteTextHeight}">
+        <div xmlns="http://www.w3.org/1999/xhtml"
+             style="width: 100%; height: 100%;">
+          <div style="color: #D4D4D4; 
+                      font-family: Arial, sans-serif;
+                      font-size: 15px;
+                      line-height: 1.3;
+                      overflow-wrap: break-word;
+                      word-break: break-word;">
+            ${escapeText(quotedText)}
+          </div>
+        </div>
+      </foreignObject>
     </g>
   `;
 };
@@ -347,6 +407,83 @@ const timeAgo = (timestamp: string): string => {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
   return `${Math.floor(seconds / 86400)}d`;
+};
+
+const generateWarpcastElement = (
+  embed: Cast["embeds"][0],
+  config: CardConfig,
+  yOffset: number
+) => {
+  if (!embed.metadata?.html?.ogImage?.[0]?.url) return "";
+
+  const imageUrl = embed.metadata.html.ogImage[0].url;
+  const title = embed.metadata.html.ogTitle || "";
+  const description = embed.metadata.html.ogDescription || "";
+
+  // Calculate image dimensions while maintaining aspect ratio
+  const originalWidth = parseInt(embed.metadata.html.ogImage[0].width);
+  const originalHeight = parseInt(embed.metadata.html.ogImage[0].height);
+  const imageWidth = config.width - config.padding * 2;
+  const imageHeight = Math.min(
+    (imageWidth * originalHeight) / originalWidth,
+    config.maxImageHeight
+  );
+
+  // Total element height including padding, image, and text
+  const elementHeight = imageHeight + 80; // 80px for title and description
+
+  return `
+    <g transform="translate(${config.padding}, ${yOffset})">
+      <!-- Container with gradient border -->
+      <rect 
+        width="${config.width - config.padding * 2}" 
+        height="${elementHeight}" 
+        rx="16"
+        fill="transparent"
+        stroke="url(#paint1_linear_0_3)"
+        stroke-width="1"
+      />
+      
+      <!-- Image -->
+      <g transform="translate(0, 0)">
+        <defs>
+          <clipPath id="imageClip${yOffset}">
+            <path d="M0,16 
+                     a16,16 0 0 1 16,-16 
+                     h${imageWidth - 32} 
+                     a16,16 0 0 1 16,16 
+                     v${imageHeight} 
+                     h-${imageWidth} 
+                     v-${imageHeight} 
+                     z" />
+          </clipPath>
+        </defs>
+        <image 
+          href="${imageUrl}"
+          width="${imageWidth}"
+          height="${imageHeight}"
+          clip-path="url(#imageClip${yOffset})"
+        />
+      </g>
+
+      <!-- Title -->
+      <text x="16" y="${imageHeight + 30}" 
+            fill="white" 
+            font-size="16" 
+            font-family="Arial, sans-serif"
+            font-weight="bold">
+        ${escapeText(title)}
+      </text>
+
+      <!-- Description/URL -->
+      <text x="16" y="${imageHeight + 55}" 
+            fill="#666666" 
+            font-size="14" 
+            font-family="Arial, sans-serif">
+        ${escapeText(description)}
+      </text>
+    </g>
+  `;
 };
 
 export default generateCastCard;
