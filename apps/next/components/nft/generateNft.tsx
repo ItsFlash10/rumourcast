@@ -63,7 +63,6 @@ const generateCastCard = (
         currentYOffset += config.maxImageHeight + 20; // Image height + spacing
         contentHeight += config.maxImageHeight + 60; // Account for spacing
       } else if (embed.cast) {
-        console.log({ embed: JSON.stringify(embed) });
 
         embeddedContent += generateQuotedCastElement(
           embed.cast,
