@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Heart, Loader2, MessageSquare, RefreshCcw } from 'lucide-react'
 import { useState } from 'react'
-import { useCreatePost } from '../create-post/context'
+import { useCreatePost, useEthersSigner } from '../create-post/context'
 import { useAccount, useSignMessage } from 'wagmi'
 import { useBalance } from '@/hooks/use-balance'
 import { TOKEN_CONFIG } from '@anon/utils/src/config'
@@ -25,6 +25,7 @@ import { useRouter } from 'next/navigation'
 import { hashMessage } from 'viem'
 import { Input } from '../ui/input'
 import { useQuery } from '@tanstack/react-query'
+import { getContract } from '@/lib/api/contract'
 
 function formatNumber(num: number): string {
   if (num < 1000) return num.toString()
@@ -43,6 +44,8 @@ export function Post({
   tokenAddress: string
 }) {
   const { address } = useAccount()
+  const signer = useEthersSigner();
+
   const { data: balance } = useBalance(tokenAddress)
   const [reveal, setReveal] = useState(cast.reveal)
 
@@ -79,6 +82,19 @@ export function Post({
   const quote = () => {
     setQuote(cast)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const mint = async () => {
+    console.log(cast.hash);
+    const tokenId = await api.getTokenId(cast.hash);
+    console.log(tokenId)
+    if (!tokenId){
+      console.log("Token Id not resolved.")
+      return;
+    }
+    if (!signer) return;
+    const response = await getContract(signer).mint(address!, BigInt(tokenId), BigInt(10));
+    console.log("Transaction Hash: ", response?.hash);
   }
 
   // Usage in component
@@ -210,15 +226,15 @@ export function Post({
             >
               {address && (
                 <p
-  className="text-sm button-secondary rounded-full font-semibold cursor-pointer hover:text-zinc-400"
-  style={{
-    backgroundColor: 'rgba(124, 101, 193, 0.25)',
-    padding: '0.5rem 1rem',
-  }}
-  onClick={quote}
->
-  Quote
-</p>
+                  className="text-sm button-secondary rounded-full font-semibold cursor-pointer hover:text-zinc-400"
+                  style={{
+                    backgroundColor: 'rgba(124, 101, 193, 0.25)',
+                    padding: '0.5rem 1rem',
+                  }}
+                  onClick={quote}
+                >
+                  Quote
+                </p>
               )}
               {address && (
                 <p
@@ -230,6 +246,18 @@ export function Post({
                   onClick={reply}
                 >
                   Reply
+                </p>
+              )}
+              {address && signer && (
+                <p
+                className="text-sm button-secondary rounded-full font-semibold cursor-pointer hover:text-zinc-400"
+                style={{
+                  backgroundColor: 'rgba(124, 101, 193, 0.25)',
+                  padding: '0.5rem 1rem',
+                }}
+                  onClick={async () => { await mint()}}
+                >
+                  Mint
                 </p>
               )}
               {canReveal && (

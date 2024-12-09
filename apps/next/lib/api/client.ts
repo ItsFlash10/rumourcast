@@ -10,7 +10,7 @@ export class ApiClient {
   private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
     const contentType = response.headers.get("content-type");
     const hasJson = contentType?.includes("application/json");
-    const data = hasJson ? await response.json() : null;
+    const data = hasJson ? await response.json() : await response.text();
 
     if (!response.ok) {
       return {

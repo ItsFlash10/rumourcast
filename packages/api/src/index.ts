@@ -6,6 +6,7 @@ import { getPostRoutes } from "./routes/post";
 import { uploadRoutes } from "./routes/upload";
 import { neynar } from "./services/neynar";
 import { getProvingBackend, ProofType } from "@anon/utils/src/proofs";
+import { contract } from "./services/contract";
 (async () => {
   const [createPostBackend, submitHashBackend] = await Promise.all([
     getProvingBackend(ProofType.CREATE_POST),
@@ -65,6 +66,45 @@ import { getProvingBackend, ProofType } from "@anon/utils/src/proofs";
       {
         query: t.Object({
           address: t.String(),
+        }),
+      }
+    )
+    .get(
+      "/get-token-id",
+      async ({ query }) => {
+        const tokenId = await contract.getOrCreateTokenId(query.identifier);
+        console.log(tokenId);
+        return tokenId;
+      },
+      {
+        query: t.Object({
+          identifier: t.String(),
+        }),
+      }
+    )
+    .get(
+      "/get-mint-price",
+      async () => {
+        const mintPrice = await contract.getMintPrice();
+        return mintPrice;
+      },
+    )
+    .get(
+      "/get-max-mint-limit",
+      async () => {
+        const maxMintLimit = await contract.getMaxMintLimit();
+        return maxMintLimit;
+      },
+    )
+    .get(
+      "/get-token-mint-count",
+      async ({ query }) => {
+        const count = await contract.getTokenMintCount(query.identifier);
+        return count;
+      },
+      {
+        query: t.Object({
+          identifier: t.String(),
         }),
       }
     );

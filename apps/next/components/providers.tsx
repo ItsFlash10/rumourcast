@@ -4,7 +4,7 @@ import '@rainbow-me/rainbowkit/styles.css'
 
 import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { WagmiProvider } from 'wagmi'
-import { base } from 'wagmi/chains'
+import { baseSepolia } from 'wagmi/chains'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
 import { ANON_ADDRESS } from '@anon/utils/src/config'
@@ -13,7 +13,7 @@ import { CreatePostProvider } from './create-post/context'
 const config = getDefaultConfig({
   appName: 'RumourCast App',
   projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || '',
-  chains: [base],
+  chains: [baseSepolia],
   ssr: true,
 })
 

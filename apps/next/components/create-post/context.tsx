@@ -1,10 +1,11 @@
 import { useToast } from '@/hooks/use-toast'
 import { api } from '@/lib/api'
+import { BrowserProvider, JsonRpcSigner } from 'ethers'
 import { Cast, Channel } from '@/lib/types'
 import { generateProof, ProofType } from '@anon/utils/src/proofs'
-import { createContext, useContext, useState, ReactNode } from 'react'
-import { hashMessage } from 'viem'
-import { useAccount, useSignMessage } from 'wagmi'
+import { createContext, useContext, useState, ReactNode, useMemo } from 'react'
+import { Account, Chain, Client, hashMessage } from 'viem'
+import { Config, Transport, useAccount, useConnectorClient, useSignMessage , useClient} from 'wagmi'
 
 type State =
   | {
@@ -38,6 +39,22 @@ interface CreatePostContextProps {
 }
 
 const CreatePostContext = createContext<CreatePostContextProps | undefined>(undefined)
+
+export function useEthersSigner() {
+  const { data: client } = useConnectorClient<Config>();
+  return useMemo(() => {
+    if (!client) return undefined;
+    const { account, chain, transport } = client
+    const network = {
+      chainId: chain.id,
+      name: chain.name,
+      ensAddress: chain.contracts?.ensRegistry?.address,
+    }
+    const provider = new BrowserProvider(transport, network)
+    const signer = new JsonRpcSigner(provider, account.address)
+    return signer;
+  }, [client])
+}
 
 export const CreatePostProvider = ({
   tokenAddress,

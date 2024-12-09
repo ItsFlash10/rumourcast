@@ -144,4 +144,29 @@ export const api = {
     );
     return response.data;
   },
+  getTokenId: async (cast_id: string) => {
+    const response = await apiClient.request<string>(
+      `/get-token-id?identifier=${cast_id}`
+    );
+    console.log(response);
+    return response.data;
+  },
+  getMintPrice: async () => {
+    const response = await apiClient.request<string>(
+      `/get-mint-price`
+    );
+    return response.data;
+  },
+  getMaxMintLimit: async () => {
+    const response = await apiClient.request<string>(
+      `/get-max-mint-limit`
+    );
+    return response.data;
+  },
+  getTokenMintCount: async (token_id: string) => {
+    const response = await apiClient.request<string>(
+      `/get-token-mint-count?identifier=${token_id}`
+    );
+    return response.data;
+  },
 };
