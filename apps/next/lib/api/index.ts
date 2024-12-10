@@ -148,7 +148,6 @@ export const api = {
     const response = await apiClient.request<string>(
       `/get-token-id?identifier=${cast_id}`
     );
-    console.log(response);
     return response.data;
   },
   getMintPrice: async () => {

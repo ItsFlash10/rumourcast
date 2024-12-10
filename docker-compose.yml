@@ -13,6 +13,7 @@ services:
       - .env
     depends_on:
       - api
+    network_mode: host
 
   api:
     build:

@@ -73,7 +73,6 @@ import { contract } from "./services/contract";
       "/get-token-id",
       async ({ query }) => {
         const tokenId = await contract.getOrCreateTokenId(query.identifier);
-        console.log(tokenId);
         return tokenId;
       },
       {

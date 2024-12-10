@@ -48,8 +48,6 @@ const generateCastCard = (
   let contentHeight = config.padding * 2;
   let currentYOffset = config.padding + 60;
 
-  console.log({ caaaa: JSON.stringify(cast) });
-
   // Clean and sanitize text
   const sanitizedText = cleanText(cast.text || "").replace(
     /^I heard a rumour.*?\.{2,}(\s|$)/,

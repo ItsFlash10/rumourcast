@@ -86,9 +86,7 @@ export function Post({
   }
 
   const mint = async (quantity: number = 1) => {
-    console.log(cast.hash);
     const tokenId = await api.getTokenId(cast.hash);
-    console.log(tokenId)
     if (!tokenId){
       console.log("Token Id not resolved.")
       return;

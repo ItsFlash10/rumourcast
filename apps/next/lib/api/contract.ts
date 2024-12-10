@@ -36,12 +36,9 @@ class ContractService {
     );
   }
   static getBrowserInstance(signer: Signer): ContractService {
-    if (!ContractService.instance) {
-      ContractService.instance = new ContractService(
-        signer
-      );
-    }
-    return ContractService.instance;
+    return new ContractService(
+      signer
+    );
   }
 
   async mint(
