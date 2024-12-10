@@ -7,7 +7,9 @@ const CACHE_TTL = 60 * 60 * 24; // 24 hours
 
 class ContractService {
   private readonly contract: ethers.Contract;
+  private readonly contractWrite: ethers.Contract;
   private readonly provider: ethers.Provider;
+  private readonly signer: ethers.Wallet;
   private readonly redis: Redis;
   private static instance: ContractService;
 
@@ -15,7 +17,7 @@ class ContractService {
     contractAddress: string,
     rpcUrl: string,
     redisUrl: string,
-    signer: Signer
+    signer: string
   ) {
     this.provider = new ethers.JsonRpcProvider(rpcUrl);
     this.contract = new ethers.Contract(
@@ -23,6 +25,13 @@ class ContractService {
       ABI,
       this.provider
     );
+    this.signer = new ethers.Wallet(signer, this.provider);
+    this.contractWrite = new ethers.Contract(
+      contractAddress,
+      ABI,
+      this.signer
+    );
+
     this.redis = new Redis(redisUrl);
   }
 
@@ -41,7 +50,7 @@ class ContractService {
         contractAddress,
         rpcUrl,
         redisUrl,
-        new ethers.Wallet(signer)
+        signer
       );
     }
     return ContractService.instance;
@@ -82,12 +91,14 @@ class ContractService {
       const tokenId = await this.getComputeTokenId(castId);
       const exists = await this.checkTokenIdExists(tokenId);
       if (!exists) {
+        console.log("Generating new token id");
         try {
           await neynar.getCast(castId); // ensure creating tokens for valid casts
         } catch (e) {
           throw new Error("HTTP Error: Invalid cast id");
         }
-        const tx = await this.contract.generateTokenId(castId);
+        console.log("Sending transaction");
+        const tx = await this.contractWrite.generateTokenId(castId);
         await tx.wait();
         console.log("New Token Id Generated: ", tokenId);
       }
@@ -96,6 +107,7 @@ class ContractService {
       }
       return tokenId;
     } catch (error) {
+      console.log(error);
       throw new Error(`Could not resolve token Id for cast ${castId}`);
     }
   }
