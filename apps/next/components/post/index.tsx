@@ -48,6 +48,7 @@ export function Post({
 
   const { data: balance } = useBalance(tokenAddress)
   const [reveal, setReveal] = useState(cast.reveal)
+  const [isMintModalVisible, setIsMintModalVisible] = useState(false)
 
   const canDelete =
     address &&
@@ -84,7 +85,7 @@ export function Post({
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const mint = async () => {
+  const mint = async (quantity: number = 1) => {
     console.log(cast.hash);
     const tokenId = await api.getTokenId(cast.hash);
     console.log(tokenId)
@@ -93,7 +94,7 @@ export function Post({
       return;
     }
     if (!signer) return;
-    const response = await getContract(signer).mint(address!, BigInt(tokenId), BigInt(10));
+    const response = await getContract(signer).mint(address!, BigInt(tokenId), BigInt(quantity));
     console.log("Transaction Hash: ", response?.hash);
   }
 
@@ -255,11 +256,12 @@ export function Post({
                   backgroundColor: 'rgba(124, 101, 193, 0.25)',
                   padding: '0.5rem 1rem',
                 }}
-                  onClick={async () => { await mint()}}
+                  onClick={() => setIsMintModalVisible(true)}
                 >
                   Mint
                 </p>
               )}
+              {isMintModalVisible && <MintModal setIsVisible={setIsMintModalVisible} onMint={mint} />}
               {canReveal && (
                 <RevealButton
                   cast={cast}
@@ -477,4 +479,85 @@ function RevealBadge({ reveal }: { reveal: Reveal }) {
       )}
     </div>
   )
+}
+
+function MintModal({ setIsVisible, onMint }: { setIsVisible: (visible: boolean) => void, onMint: (quantity: number) => Promise<void> }) {
+  const [quantity, setQuantity] = useState(1);
+  const pricePerMint = 0.001; // Price in ETH per mint, adjust as needed
+  
+  const decreaseQuantity = () => {
+    if (quantity > 1) {
+      setQuantity(quantity - 1);
+    }
+  };
+
+  const increaseQuantity = () => {
+    setQuantity(quantity + 1);
+  };
+
+  const totalPrice = (quantity * pricePerMint).toFixed(3);
+
+  const handleMint = async () => {
+    try {
+      await onMint(quantity);
+      setIsVisible(false);
+    } catch (error) {
+      console.error('Minting failed:', error);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 w-80 relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsVisible(false)}
+          className="h-6 w-6 absolute right-2 top-2"
+        >
+          ✕
+        </Button>
+        
+        <h2 className="text-xl font-bold mb-4 mt-2">Mint NFT</h2>
+        
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-zinc-400">Quantity</span>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={decreaseQuantity}
+                disabled={quantity <= 1}
+              >
+                -
+              </Button>
+              <span className="w-8 text-center">{quantity}</span>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={increaseQuantity}
+              >
+                +
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-zinc-400">Total Price</span>
+            <span className="font-bold">{totalPrice} ETH</span>
+          </div>
+
+          <Button 
+            className="w-full mt-2"
+            onClick={handleMint}
+          >
+            Mint NFT
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
