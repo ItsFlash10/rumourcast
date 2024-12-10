@@ -145,27 +145,27 @@ export const api = {
     return response.data;
   },
   getTokenId: async (cast_id: string) => {
-    const response = await apiClient.request<string>(
+    const response = await apiClient.request<{tokenId:string}>(
       `/get-token-id?identifier=${cast_id}`
     );
-    return response.data;
+    return response.data?.tokenId;
   },
   getMintPrice: async () => {
-    const response = await apiClient.request<string>(
+    const response = await apiClient.request<{mintPrice: string}>(
       `/get-mint-price`
     );
-    return response.data;
+    return response.data?.mintPrice;
   },
   getMaxMintLimit: async () => {
-    const response = await apiClient.request<string>(
+    const response = await apiClient.request<{maxMintLimit: string}>(
       `/get-max-mint-limit`
     );
-    return response.data;
+    return response.data?.maxMintLimit;
   },
   getTokenMintCount: async (token_id: string) => {
-    const response = await apiClient.request<string>(
+    const response = await apiClient.request<{count: string}>(
       `/get-token-mint-count?identifier=${token_id}`
     );
-    return response.data;
+    return response.data?.count;
   },
 };

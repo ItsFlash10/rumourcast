@@ -73,7 +73,7 @@ import { contract } from "./services/contract";
       "/get-token-id",
       async ({ query }) => {
         const tokenId = await contract.getOrCreateTokenId(query.identifier);
-        return tokenId;
+        return {tokenId};
       },
       {
         query: t.Object({
@@ -85,21 +85,21 @@ import { contract } from "./services/contract";
       "/get-mint-price",
       async () => {
         const mintPrice = await contract.getMintPrice();
-        return mintPrice;
+        return {mintPrice};
       },
     )
     .get(
       "/get-max-mint-limit",
       async () => {
         const maxMintLimit = await contract.getMaxMintLimit();
-        return maxMintLimit;
+        return {maxMintLimit};
       },
     )
     .get(
       "/get-token-mint-count",
       async ({ query }) => {
         const count = await contract.getTokenMintCount(query.identifier);
-        return count;
+        return {count};
       },
       {
         query: t.Object({
