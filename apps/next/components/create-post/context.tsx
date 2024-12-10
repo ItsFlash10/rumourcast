@@ -127,7 +127,7 @@ export const CreatePostProvider = ({
         },
         input: {
           ...input,
-          text: 'I heard a rumour... ' + text,
+          text: 'I heard a rumour... ' + (text ?? ' '),
           revealHash,
         },
       })
