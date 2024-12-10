@@ -45,10 +45,12 @@ export function Post({
 }) {
   const { address } = useAccount()
   const signer = useEthersSigner();
+  const { toast } = useToast()
 
   const { data: balance } = useBalance(tokenAddress)
   const [reveal, setReveal] = useState(cast.reveal)
   const [isMintModalVisible, setIsMintModalVisible] = useState(false)
+  const [mintStatus, setMintStatus] = useState<'idle' | 'generating' | 'minting'>('idle');
 
   const canDelete =
     address &&
@@ -86,14 +88,35 @@ export function Post({
   }
 
   const mint = async (quantity: number = 1) => {
-    const tokenId = await api.getTokenId(cast.hash);
-    if (!tokenId){
-      console.log("Token Id not resolved.")
-      return;
+    try {
+      setMintStatus('generating');
+      const tokenId = await api.getTokenId(cast.hash);
+      if (!tokenId) {
+        toast({
+          title: "Error",
+          description: "Failed to generate NFT. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setMintStatus('minting');
+      if (!signer || !address) return;
+      const response = await getContract(signer).mint(address, BigInt(tokenId), BigInt(quantity));
+      console.log("Transaction Hash: ", response?.hash);
+      toast({
+        title: "Success",
+        description: `Successfully minted ${quantity} NFT${quantity > 1 ? 's' : ''}`,
+      });
+    } catch (error) {
+      console.error('Minting failed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mint NFT. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setMintStatus('idle');
     }
-    if (!signer) return;
-    const response = await getContract(signer).mint(address!, BigInt(tokenId), BigInt(quantity));
-    console.log("Transaction Hash: ", response?.hash);
   }
 
   // Usage in component
@@ -259,7 +282,13 @@ export function Post({
                   Mint
                 </p>
               )}
-              {isMintModalVisible && <MintModal setIsVisible={setIsMintModalVisible} onMint={mint} />}
+              {isMintModalVisible && (
+                <MintModal 
+                  setIsVisible={setIsMintModalVisible} 
+                  onMint={mint}
+                  status={mintStatus}
+                />
+              )}
               {canReveal && (
                 <RevealButton
                   cast={cast}
@@ -479,11 +508,12 @@ function RevealBadge({ reveal }: { reveal: Reveal }) {
   )
 }
 
-function MintModal({ setIsVisible, onMint }: { setIsVisible: (visible: boolean) => void, onMint: (quantity: number) => Promise<void> }) {
+function MintModal({ setIsVisible, onMint, status }: { 
+  setIsVisible: (visible: boolean) => void, 
+  onMint: (quantity: number) => Promise<void>,
+  status: 'idle' | 'generating' | 'minting'
+}) {
   const [quantity, setQuantity] = useState(1);
-  const pricePerMint = 0.001; // Price in ETH per mint, adjust as needed
-  const { toast } = useToast();
-  const [isMinting, setIsMinting] = useState(false);
   
   const decreaseQuantity = () => {
     if (quantity > 1) {
@@ -495,26 +525,26 @@ function MintModal({ setIsVisible, onMint }: { setIsVisible: (visible: boolean) 
     setQuantity(quantity + 1);
   };
 
-  const totalPrice = (quantity * pricePerMint).toFixed(3);
+  const totalPrice = (quantity * 0.001).toFixed(3);
 
-  const handleMint = async () => {
-    setIsMinting(true);
-    try {
-      await onMint(quantity);
-      setIsVisible(false);
-      toast({
-        title: "Success",
-        description: `Successfully minted ${quantity} NFT${quantity > 1 ? 's' : ''}`,
-      });
-    } catch (error) {
-      console.error('Minting failed:', error);
-      toast({
-        title: "Error",
-        description: "Failed to mint NFT. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsMinting(false);
+  const getButtonContent = () => {
+    switch (status) {
+      case 'generating':
+        return (
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Generating NFT...</span>
+          </div>
+        );
+      case 'minting':
+        return (
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Minting NFT...</span>
+          </div>
+        );
+      default:
+        return 'Mint NFT';
     }
   };
 
@@ -541,7 +571,7 @@ function MintModal({ setIsVisible, onMint }: { setIsVisible: (visible: boolean) 
                 size="icon" 
                 className="h-8 w-8"
                 onClick={decreaseQuantity}
-                disabled={quantity <= 1}
+                disabled={quantity <= 1 || status !== 'idle'}
               >
                 -
               </Button>
@@ -551,6 +581,7 @@ function MintModal({ setIsVisible, onMint }: { setIsVisible: (visible: boolean) 
                 size="icon" 
                 className="h-8 w-8"
                 onClick={increaseQuantity}
+                disabled={status !== 'idle'}
               >
                 +
               </Button>
@@ -564,17 +595,10 @@ function MintModal({ setIsVisible, onMint }: { setIsVisible: (visible: boolean) 
 
           <Button 
             className="w-full mt-2"
-            onClick={handleMint}
-            disabled={isMinting}
+            onClick={() => onMint(quantity)}
+            disabled={status !== 'idle'}
           >
-            {isMinting ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Minting...</span>
-              </div>
-            ) : (
-              'Mint NFT'
-            )}
+            {getButtonContent()}
           </Button>
         </div>
       </div>
