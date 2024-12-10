@@ -482,6 +482,8 @@ function RevealBadge({ reveal }: { reveal: Reveal }) {
 function MintModal({ setIsVisible, onMint }: { setIsVisible: (visible: boolean) => void, onMint: (quantity: number) => Promise<void> }) {
   const [quantity, setQuantity] = useState(1);
   const pricePerMint = 0.001; // Price in ETH per mint, adjust as needed
+  const { toast } = useToast();
+  const [isMinting, setIsMinting] = useState(false);
   
   const decreaseQuantity = () => {
     if (quantity > 1) {
@@ -496,11 +498,23 @@ function MintModal({ setIsVisible, onMint }: { setIsVisible: (visible: boolean) 
   const totalPrice = (quantity * pricePerMint).toFixed(3);
 
   const handleMint = async () => {
+    setIsMinting(true);
     try {
       await onMint(quantity);
       setIsVisible(false);
+      toast({
+        title: "Success",
+        description: `Successfully minted ${quantity} NFT${quantity > 1 ? 's' : ''}`,
+      });
     } catch (error) {
       console.error('Minting failed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mint NFT. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsMinting(false);
     }
   };
 
@@ -551,8 +565,16 @@ function MintModal({ setIsVisible, onMint }: { setIsVisible: (visible: boolean) 
           <Button 
             className="w-full mt-2"
             onClick={handleMint}
+            disabled={isMinting}
           >
-            Mint NFT
+            {isMinting ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Minting...</span>
+              </div>
+            ) : (
+              'Mint NFT'
+            )}
           </Button>
         </div>
       </div>
